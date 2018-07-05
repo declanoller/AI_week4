@@ -5,6 +5,8 @@ from BaseAI import BaseAI
 
 from time import time
 
+from math import inf
+
 class PlayerAI(BaseAI):
 
     def timeIsUp(self,start_time):
@@ -17,17 +19,17 @@ class PlayerAI(BaseAI):
         free_cells = grid.getAvailableCells()
         return(len(free_cells))
 
-    def Maximize(self, grid, depth, max_depth, start_time):
+    def Maximize(self, grid, depth, max_depth, start_time, alpha, beta):
 
         if self.timeIsUp(start_time):
-            print('out of time for this move')
+            #print('out of time for this move')
             return(('timeout', None, self.heuristic(grid)))
 
 
         if depth>max_depth:
             return(('time remaining', None, self.heuristic(grid)))
 
-        max_val = -10000000
+        max_val = -inf
         max_child = None
         moves = grid.getAvailableMoves()
 
@@ -37,27 +39,39 @@ class PlayerAI(BaseAI):
         for move in moves:
             temp_grid = grid.clone()
             temp_grid.move(move)
-            (time_status, child, val) = self.Minimize(temp_grid,depth+1,max_depth, start_time)
+            (time_status, child, val) = self.Minimize(temp_grid, depth+1, max_depth, start_time, alpha, beta)
+
+            #Check for timeout
             if time_status=='timeout':
                 return('timeout',max_child,max_val)
+
+            #Update max val
             if val>max_val:
                 max_val = val
                 max_child = move
+
+            #Check to see if can prune
+            if max_val>=beta:
+                break
+
+            #If not, update alpha
+            if max_val>alpha:
+                alpha = max_val
 
 
         return(('time remaining', max_child, max_val))
 
 
-    def Minimize(self, grid, depth, max_depth, start_time):
+    def Minimize(self, grid, depth, max_depth, start_time, alpha, beta):
 
         if self.timeIsUp(start_time):
-            print('out of time for this move')
+            #print('out of time for this move')
             return(('timeout', None, self.heuristic(grid)))
 
         if depth>max_depth:
             return(('time remaining', None, self.heuristic(grid)))
 
-        min_val = 10000000
+        min_val = inf
         min_child = None
         free_cells = grid.getAvailableCells()
         tiles = [(cell,2) for cell in free_cells]+[(cell,4) for cell in free_cells]
@@ -69,12 +83,27 @@ class PlayerAI(BaseAI):
         for tile in tiles:
             temp_grid = grid.clone()
             temp_grid.insertTile(tile[0],tile[1])
-            (time_status, child, val) = self.Maximize(temp_grid,depth+1,max_depth, start_time)
+            (time_status, child, val) = self.Maximize(temp_grid, depth+1, max_depth, start_time, alpha, beta)
             if time_status=='timeout':
                 return('timeout',min_child,min_val)
+
+
+            #Check for timeout
+            if time_status=='timeout':
+                return('timeout',max_child,max_val)
+
+            #Update min val
             if val<min_val:
                 min_val = val
                 min_child = tile
+
+            #Check to see if can prune
+            if min_val<=alpha:
+                break
+
+            #If not, update alpha
+            if min_val<beta:
+                beta = min_val
 
 
         return(('time remaining', min_child, min_val))
@@ -85,23 +114,23 @@ class PlayerAI(BaseAI):
 
         start_time = time()
 
-        best_val = -1000000
+        best_val = -inf
         best_move = None
 
         max_depth = 1
         time_status = 'time remaining'
         while time_status!='timeout':
 
-            (time_status, best_move_at_depth, best_val_at_depth) = self.Maximize(grid,1,max_depth, start_time)
-            print('best move and value at depth {}: {},{}'.format(max_depth,best_move_at_depth,best_val_at_depth))
+            (time_status, best_move_at_depth, best_val_at_depth) = self.Maximize(grid,1,max_depth, start_time, -inf, inf)
+            #print('best move and value at depth {}: {},{}'.format(max_depth,best_move_at_depth,best_val_at_depth))
             if best_val_at_depth>best_val:
                 best_val = best_val_at_depth
                 best_move = best_move_at_depth
 
             max_depth += 1
 
-        print('best move:',best_move)
-        print('best value:',best_val)
+        #print('best move:',best_move)
+        #print('best value:',best_val)
         return(best_move)
 
 
